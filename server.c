@@ -62,6 +62,14 @@ int main()
   server_addr.sin_addr.s_addr = INADDR_ANY; // bind to any available network interface (basically ip address)
   server_addr.sin_port = htons(8080);       // port number
 
+  // bind socket to IP and port
+  if (bind(socketfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+  {
+    perror("bind");
+    close(socketfd);
+    return 1;
+  }
+
   // listen for client sockets (20 max)
   const int BACKLOG_SIZE = 20;
   if (listen(socketfd, BACKLOG_SIZE) == -1)
