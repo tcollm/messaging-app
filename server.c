@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <string.h>
+#include <pthread.h>
 
 #define MAX_NAME_LEN 50
 #define MAX_MSG_LEN 256
@@ -21,24 +22,24 @@ int socketfd;
 
 void handle_signal_interrupt()
 {
-  printf("shutting server down...\n");
+  printf("\nshutting server down...\n");
   server_running = 0;
   close(socketfd);
   exit(0);
 }
 
-void connect_client(const char *CLIENT_ID)
+void *handle_client()
 {
-  printf("client connecting...\n");
-  // handle connecting client...fork()?
-  printf("client %s connected.\n", CLIENT_ID);
+  return NULL;
 }
 
 int main()
 {
   printf("starting server...\n");
 
-  struct sockaddr_in server_addr;
+  int new_socket;
+  struct sockaddr_in server_addr, client_addr;
+  socklen_t client_addr_len = sizeof(client_addr);
   // create queue to store msgs
 
   // Set up signal handler for SIGINT (Ctrl+C)
@@ -52,7 +53,7 @@ int main()
   socketfd = socket(AF_INET, SOCK_STREAM, 0);
   if (socketfd == -1)
   {
-    perror("socket");
+    perror("server socket creation failed");
     return 1;
   }
 
@@ -60,12 +61,13 @@ int main()
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;         // IPV4
   server_addr.sin_addr.s_addr = INADDR_ANY; // bind to any available network interface (basically ip address)
-  server_addr.sin_port = htons(8080);       // port number
+  const int PORT_NUM = 8080;
+  server_addr.sin_port = htons(PORT_NUM); // set port number
 
   // bind socket to IP and port
   if (bind(socketfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
   {
-    perror("bind");
+    perror("bind failed");
     close(socketfd);
     return 1;
   }
@@ -74,25 +76,52 @@ int main()
   const int BACKLOG_SIZE = 20;
   if (listen(socketfd, BACKLOG_SIZE) == -1)
   {
-    perror("listen");
+    perror("listen failed");
     close(socketfd);
     return 1;
   }
 
+  printf("Server is listening on %i\n", PORT_NUM);
+
   while (server_running)
   {
+    new_socket = accept(socketfd, (struct sockaddr *)&client_addr, &client_addr_len);
+    if (new_socket == -1)
+    {
+      perror("accept failed");
+      continue;
+    }
 
-    // *client connects:*
-    // while (a client is connected):
-    // if (next msg target is client that connected):
-    // write() msg to target client
-    // else:
-    // write() "enter msg:"
-    // msg = read()
-    // append msg to queue
+    // FIX: the first thing that the client sends will be interpreted as the clients name
+    // - this will need to be handled by the server in the handle_client function
+    // - it will s need to be implemented on ther server end (so that the client knowns that it is sending a name)
+    // - ALSO should this be stored on the server end? so that all msgs can be logged with the user?
+    printf("Client connected.\n");
+
+    int *client_socket = malloc(sizeof(int));
+    if (client_socket == NULL)
+    {
+      perror("mem allocation of client_socket failed");
+      close(new_socket);
+      continue;
+    }
+
+    *client_socket = new_socket;
+
+    // create new thread to handle client
+    pthread_t thread_id;
+    if (pthread_create(&thread_id, NULL, handle_client, (void *)client_socket) != 0)
+    {
+      perror("thread creation failed");
+      free(client_socket);
+      close(new_socket);
+    }
+
+    // detach thread to allow clean up
+    pthread_detach(thread_id);
   }
 
   // clean up
-  // close()... and other socket clean up
+  close(socketfd);
   return 0;
 }
