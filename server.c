@@ -28,8 +28,28 @@ void handle_signal_interrupt()
   exit(0);
 }
 
-void *handle_client()
+void *handle_client(void *client_socket)
 {
+  int communication_socket = *((int *)client_socket);
+  free(client_socket);
+
+  // client communication
+  char buffer[MAX_MSG_LEN];
+  while (server_running)
+  {
+    ssize_t bytes_read = read(communication_socket, buffer, sizeof(buffer) - 1);
+    if (bytes_read <= 0)
+    {
+      printf("client disconnected.\n");
+      break;
+    }
+    buffer[bytes_read] = '\0'; // null-terminate buffer
+
+    // store msg to queue
+
+    write(communication_socket, "Message received.\n", 18);
+  }
+  close(communication_socket);
   return NULL;
 }
 
@@ -92,9 +112,9 @@ int main()
       continue;
     }
 
-    // FIX: the first thing that the client sends will be interpreted as the clients name
+    // TODO: the first thing that the client sends will be interpreted as the clients name
     // - this will need to be handled by the server in the handle_client function
-    // - it will s need to be implemented on ther server end (so that the client knowns that it is sending a name)
+    // - it will need to be implemented on ther server end (so that the client knowns that it is sending a name)
     // - ALSO should this be stored on the server end? so that all msgs can be logged with the user?
     printf("Client connected.\n");
 
