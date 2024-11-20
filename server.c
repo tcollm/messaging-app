@@ -1,4 +1,11 @@
 // libs:
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <string.h>
 
 #define MAX_NAME_LEN 50
 #define MAX_MSG_LEN 256
@@ -10,12 +17,13 @@ typedef struct Message
 } Message;
 
 volatile int server_running = 1;
+int socketfd;
 
-void handle_signal_interrupt(sig)
+void handle_signal_interrupt()
 {
   printf("shutting server down...\n");
   server_running = 0;
-  // close socket and what not
+  close(socketfd);
   exit(0);
 }
 
@@ -29,16 +37,43 @@ void connect_client(const char *CLIENT_ID)
 int main()
 {
   printf("starting server...\n");
-  // socket()
-  // bind()
-  // accept()
 
+  struct sockaddr_in server_addr;
   // create queue to store msgs
 
-  // *wait for a client to connect*
+  // Set up signal handler for SIGINT (Ctrl+C)
+  if (signal(SIGINT, handle_signal_interrupt) == SIG_ERR)
+  {
+    perror("signal");
+    return 1;
+  }
+
+  // create server (listener) socket
+  socketfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (socketfd == -1)
+  {
+    perror("socket");
+    return 1;
+  }
+
+  // init server_addr structure
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;         // IPV4
+  server_addr.sin_addr.s_addr = INADDR_ANY; // bind to any available network interface (basically ip address)
+  server_addr.sin_port = htons(8080);       // port number
+
+  // listen for client sockets (20 max)
+  const int BACKLOG_SIZE = 20;
+  if (listen(socketfd, BACKLOG_SIZE) == -1)
+  {
+    perror("listen");
+    close(socketfd);
+    return 1;
+  }
 
   while (server_running)
   {
+
     // *client connects:*
     // while (a client is connected):
     // if (next msg target is client that connected):
