@@ -28,12 +28,12 @@ void handle_signal_interrupt()
   exit(0);
 }
 
-void *handle_client(void *client_socket)
+void *read_from_client(void *client_socket)
 {
   int communication_socket = *((int *)client_socket);
   free(client_socket);
 
-  // client communication
+  // read to buffer
   char buffer[MAX_MSG_LEN];
   while (server_running)
   {
@@ -50,6 +50,14 @@ void *handle_client(void *client_socket)
     write(communication_socket, "Message received.\n", 18);
   }
   close(communication_socket);
+  return NULL;
+}
+
+void *write_to_client(void *client_socket)
+{
+  // create communication socket
+  // write message from queue to target client
+  // close comm socket
   return NULL;
 }
 
@@ -118,6 +126,9 @@ int main()
     // - ALSO should this be stored on the server end? so that all msgs can be logged with the user?
     printf("Client connected.\n");
 
+    // if queue is not empty && client that connected is target of next msg:
+    // write_to_client
+
     int *client_socket = malloc(sizeof(int));
     if (client_socket == NULL)
     {
@@ -130,7 +141,7 @@ int main()
 
     // create new thread to handle client
     pthread_t thread_id;
-    if (pthread_create(&thread_id, NULL, handle_client, (void *)client_socket) != 0)
+    if (pthread_create(&thread_id, NULL, read_from_client, (void *)client_socket) != 0)
     {
       perror("thread creation failed");
       free(client_socket);
